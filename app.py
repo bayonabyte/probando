@@ -90,6 +90,9 @@ def registrar():
     db = get_db()
     cursor = db.cursor(cursor_factory=RealDictCursor)
 
+    anio_actual = datetime.now().year
+    mensaje_error = None
+
     cursor.execute("SELECT id, nombre FROM marcas")
     marcas = cursor.fetchall()
 
@@ -99,33 +102,42 @@ def registrar():
     cursor.execute("SELECT id, nombre FROM posiciones")
     posiciones = cursor.fetchall()
 
+    cursor.execute("SELECT id, nombre FROM estados")
+    estados = cursor.fetchall()
+
+    cursor.execute("SELECT id, nombre FROM almacenes")
+    almacenes = cursor.fetchall()
+
+    codigo = None
+
     if request.method == 'POST':
         codigo = request.form['codigo']
         marca = request.form['marca']
         modelo = request.form['modelo']
+        anio_inicio = request.form.get('anio_inicio') or None
+        anio_fin = request.form.get('anio_fin') or None
         tipo = request.form['tipo']
+        posicion = request.form.get('posicion') or None
+        lado = request.form.get("lado") or None
         precio_compra = request.form['precio_compra']
         precio_venta = request.form['precio_venta']
         stock = request.form['stock']
         ubicacion = request.form['ubicacion'].upper().strip()
         imagen = request.files['imagen']
+        estado = request.form['estado']
+        almacen = request.form['almacen']
 
         fecha = datetime.now()
 
         try:
             # 🔹 INSERT SIN IMAGEN
             cursor.execute("""
-                INSERT INTO productos (
-                    codigo, id_marca, id_modelo, id_tipo,
-                    precio_compra, precio_venta, stock,
-                    ubicacion, imagen, fecha_registro
-                )
-                VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
-            """, (
-                codigo, marca, modelo, tipo,
-                precio_compra, precio_venta, stock,
-                ubicacion, None, fecha
-            ))
+                                    INSERT INTO productos (codigo, id_marca, id_modelo, anio_inicio, anio_fin, id_tipo,
+                                    id_posicion, id_lado, precio_compra, precio_venta, stock, ubicacion, imagen, fecha_registro,
+                                    id_estado, id_almacen)
+                                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                                """, (codigo, marca, modelo, anio_inicio, anio_fin, tipo, posicion, lado, precio_compra,
+                                      precio_venta, stock, ubicacion, None, fecha, estado, almacen))
 
             db.commit()
 
@@ -156,6 +168,36 @@ def registrar():
 
                 db.commit()
 
+                # Obtener nombres reales
+                cursor.execute("SELECT nombre FROM marcas WHERE id=%s", (marca,))
+                nombre_marca = cursor.fetchone()["nombre"]
+
+                cursor.execute("SELECT nombre FROM modelos WHERE id=%s", (modelo,))
+                nombre_modelo = cursor.fetchone()["nombre"]
+
+                cursor.execute("SELECT nombre FROM tipos WHERE id=%s", (tipo,))
+                nombre_tipo = cursor.fetchone()["nombre"]
+
+                nombre_posicion = ""
+                if posicion:
+                    cursor.execute("SELECT nombre FROM posiciones WHERE id=%s", (posicion,))
+                    nombre_posicion = cursor.fetchone()["nombre"]
+
+                # Armar descripción bonita
+                descripcion = f"{codigo} - {nombre_marca} {nombre_modelo} - {nombre_tipo}"
+
+                if nombre_posicion:
+                    descripcion += f" - {nombre_posicion}"
+
+                if lado:
+                    descripcion += f" ({lado})"
+
+                cursor.execute("""
+                               INSERT INTO historial (tipo_accion, usuario, detalles, fecha)
+                               VALUES (%s, %s, %s, NOW())
+                           """, ("Registro", "Admin", descripcion))
+                db.commit()
+
         except Exception as e:
             print(e)
             db.rollback()
@@ -164,9 +206,14 @@ def registrar():
             db.close()
 
     return render_template('registrar.html',
+                           codigo=codigo,
                            marcas=marcas,
+                           anio_actual=anio_actual,
                            tipos=tipos,
-                           posiciones=posiciones)
+                           posiciones=posiciones,
+                           estados=estados,
+                           almacenes=almacenes,
+                           error=mensaje_error)
 
 @app.route('/buscar', methods=['GET'])
 def buscar():
