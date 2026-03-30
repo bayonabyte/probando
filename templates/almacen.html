@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Información del almacén</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style_almacen.css') }}">
+    <link rel="icon" href="{{ url_for('static', filename='img/logo_web.png') }}">
+</head>
+<body>
+    <div class="back">
+        <a href="{{ url_for('index') }}">← Volver al Inicio</a>
+    </div>
+    <h1>Gestión de Almacenes</h1>
+
+    <div class="contenedor-almacenes">
+        {% for a in resumen_almacenes %}
+        <div class="almacen">
+            <h2>{{ a.nombre }}</h2>
+            <p>{{ a.porcentaje|round(0) }}%</p>
+            <p>{{ a.productos_actuales }} productos</p>
+
+            <div class="barra">
+                <div class="progreso"
+                     style="width: {{ a.porcentaje  if a.porcentaje <= 100 else 100 }}%;
+                     background:
+                     {% if a.porcentaje > 90 %}red
+                     {% elif a.porcentaje > 70 %}orange
+                     {% else %}green
+                     {% endif %}">
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+
+    <div class="buscar_container">
+
+        <h1>Buscar un producto</h1>
+
+        <form method="get" class="form_buscar">
+
+            <input type="text"
+                   name="busqueda"
+                   placeholder="Buscar producto..."
+                   value="{{ busqueda }}">
+
+            <button type="submit">Buscar</button>
+
+            <div class="filtros">
+
+                <select name="marca">
+                    <option value="">Seleccione una marca</option>
+                    {% for m in marcas %}
+                        <option value="{{ m.id }}" {% if marca|string == m.id|string %}selected{% endif %}>
+                            {{ m.nombre }}
+                        </option>
+                    {% endfor %}
+                </select>
+
+                <select name="anio">
+                    <option value="">Seleccione un año</option>
+                    {% for a in range(2000, anio_actual + 1) %}
+                        <option value="{{ a }}" {% if anio|string == a|string %}selected{% endif %}>
+                            {{ a }}
+                        </option>
+                    {% endfor %}
+                </select>
+
+                <select name="tipo" id="tipo">
+                    <option value="">Seleccione un tipo de faro</option>
+                    {% for t in tipos %}
+                        <option value="{{ t.id }}" {% if tipo == t.id|string %}selected{% endif %}>
+                            {{ t.nombre }}
+                        </option>
+                    {% endfor %}
+                </select>
+
+                <select name="almacen" id="almacen">
+                    <option value="">Seleccione un almacén</option>
+                    {% for al in almacenes %}
+                        <option value="{{ al.id }}" {% if almacen == al.id|string %}selected{% endif %}>
+                            {{ al.nombre }}
+                        </option>
+                    {% endfor %}
+                </select>
+
+
+                <button type="submit">Aplicar filtro</button>
+
+                <a href="{{ url_for('almacen') }}" class="btn-limpiar">Limpiar</a>
+
+            </div>
+
+        </form>
+
+        {% if productos %}
+
+        <div class="buscar">
+
+            {% for producto in productos %}
+            <div class="card">
+
+                <img src="https://yqezaipmdxgsoflwujki.supabase.co/storage/v1/object/public/productos/{{ producto.imagen }}">
+
+                <div class="info">
+
+                    <h2 style="text-align: center; margin-bottom: 15px" >{{ producto['marca'] }} {{ producto['modelo'] }}</h2>
+
+                    <p><strong>Código:</strong> {{ producto['codigo'] }}</p>
+
+                    <p><strong>Tipo:</strong> {{ producto['tipo'] }}</p>
+
+                    {% if producto['anio_inicio'] or producto['anio_fin'] %}
+                        <p><strong>Años:</strong>
+                            {{ producto['anio_inicio'] or '' }}
+                            {% if producto['anio_inicio'] or producto['anio_fin'] %}-{% endif %}
+                            {{ producto['anio_fin'] or '' }}
+                        </p>
+                    {% endif %}
+
+                    {% if producto['id_tipo'] in [2,3,4,5,6,8] %}
+                        <p><strong>Posición:</strong> {{ producto['posicion'] }} - {{ producto['lado'] }}</p>
+
+                    {% elif producto['id_tipo'] in [7,10] %}
+                        <p><strong>Lado:</strong> {{ producto['lado'] }}</p>
+
+                    {% elif producto['id_tipo'] == 9 %}
+                        <p><strong>Posición:</strong> {{ producto['posicion'] }}</p>
+
+                    {% elif producto['id_tipo'] == 1 %}
+
+                    {% endif %}
+
+                    <p><strong>Precio Compra:</strong> S/.{{ producto['precio_compra'] }}</p>
+
+                    <p><strong>Precio Venta:</strong> S/.{{ producto['precio_venta'] }}</p>
+
+
+                    <p><strong>Estado:</strong> {{ producto['estado'] }}</p>
+
+                    <p><strong>Stock:</strong> {{ producto['stock'] }}</p>
+
+                    <h2 class="precio">{{ producto['almacen'] }} - {{ producto['ubicacion'] }}</h2>
+
+                    <button class="btn-retirar"
+                        onclick="retirarProducto('{{ producto['codigo'] }}', {{ producto['stock'] }})">
+                        Retirar
+                    </button>
+                </div>
+            </div>
+            {% endfor %}
+
+        </div>
+
+        {% else %}
+
+            {% if busqueda %}
+                <p class="mensaje-vacio">
+                    No se encontraron resultados para "<strong>{{ busqueda }}</strong>".
+                </p>
+            {% else %}
+                <p class="mensaje-vacio">
+                    No hay productos registrados en el inventario.
+                </p>
+            {% endif %}
+
+        {% endif %}
+
+        <p id="mensajeVacio" class="mensaje-vacio" style="display: none;">
+            No hay ninguna coincidencia con los filtros seleccionados.
+        </p>
+
+        <div class="paginacion">
+
+            {% if pagina > 1 %}
+            <a href="{{ url_for('almacen', page=pagina-1, busqueda=busqueda, marca=marca, anio=anio, tipo=tipo, almacen=almacen) }}">
+                « Anterior
+            </a>
+            {% endif %}
+
+            <span>Página {{ pagina }} de {{ total_paginas }}</span>
+
+            {% if pagina < total_paginas %}
+                <a href="{{ url_for('almacen', page=pagina+1, busqueda=busqueda, marca=marca, anio=anio, tipo=tipo,
+                almacen=almacen) }}">
+                    Siguiente »
+                </a>
+            {% endif %}
+
+        </div>
+
+    </div>
+
+<div id="notificacion" class="notificacion"></div>
+
+<script src="{{ url_for('static', filename='js/almacen.js') }}"></script>
+
+</body>
+</html>

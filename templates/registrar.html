@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Registrar</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style_registrar.css') }}">
+    <link rel="icon" href="{{ url_for('static', filename='img/logo_web.png') }}">
+</head>
+<body>
+    <div class="back">
+        <a href="index">← Volver al Inicio</a>
+    </div>
+    <div class="registrar-container">
+        <h1>Registrar un nuevo producto</h1>
+        {% if codigo %}
+            <p class="success">Producto registrado con código:<br>
+                {{ codigo }}
+            </p>
+        {% endif %}
+        {% if error %}
+            <p class="error">{{ error }}</p>
+        {% endif %}
+
+        <form method="post" enctype="multipart/form-data">
+            <label for="codigo">Código del producto</label>
+            <input type="text" id="codigo" name="codigo" required>
+
+            <label for="marca">Marca</label>
+            <select id="marca" name="marca" required>
+            <option value="">Selecciona marca</option>
+            {% for marca in marcas %}
+                <option value="{{ marca.id }}">{{ marca.nombre }}</option>
+            {% endfor %}
+            </select>
+
+            <label for="modelo">Modelo</label>
+            <select id="modelo" name="modelo" required>
+                <option value="">Selecciona modelo</option>
+            </select>
+
+            <label for="anio_inicio">Año inicio</label>
+            <input type="number" id="anio_inicio" name="anio_inicio" min="2000" max="{{ anio_actual }}">
+
+            <label for="anio_fin">Año fin</label>
+            <input type="number" id="anio_fin" name="anio_fin" min="2000" max="{{ anio_actual }}">
+
+            <label for="tipo">Tipo de producto</label>
+            <select id="tipo" name="tipo" required>
+                <option value="">Seleccionar el tipo de producto</option>
+                {% for tipo in tipos %}
+                    <option value="{{ tipo.id }}">{{ tipo.nombre }}</option>
+                {% endfor %}
+            </select>
+
+            <div id="grupo_posicion">
+                <label for="posicion">Posición</label>
+                <select id="posicion" name="posicion">
+                    <option value="">Seleccionar la posición</option>
+                    {% for posicion in posiciones %}
+                        <option value="{{ posicion.id }}">{{ posicion.nombre }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div id="grupo_lado">
+                <div class="radio-group">
+                    <label>
+                        <input type="radio" name="lado" value="RH">Derecha (RH)
+                    </label>
+                    <label>
+                        <input type="radio" name="lado" value="LH">Izquierda (LH)
+                    </label>
+                </div>
+            </div>
+
+            <label for="estado">Estado del producto</label>
+            <select id="estado" name="estado" required>
+            <option value="">Seleccione un estado</option>
+            {% for estado in estados %}
+                <option value="{{ estado.id }}">{{ estado.nombre }}</option>
+            {% endfor %}
+            </select>
+
+            <label for="precio_compra">Precio de compra</label>
+            <input type="number" id="precio_compra" name="precio_compra" step="0.01" min="0" required>
+
+            <label for="precio_venta">Precio de venta</label>
+            <input type="number" id="precio_venta" name="precio_venta" step="0.01" min="0" required>
+
+            <label for="stock">Cantidad</label>
+            <input type="number" id="stock" name="stock" min="0" value="1" required>
+
+            <label for="almacen">Almacen</label>
+            <select id="almacen" name="almacen" required>
+            <option value="">Selecciona un almacen</option>
+            {% for almacen in almacenes %}
+                <option value="{{ almacen.id }}">{{ almacen.nombre }}</option>
+            {% endfor %}
+            </select>
+
+            <label for="ubicacion">Ubicación en el almacén</label>
+                <input type="text" id="ubicacion" name="ubicacion" required>
+
+            <label for="imagen">Subir una imagen</label>
+            <input type="file" id="imagen" name="imagen" accept="image/*" required>
+
+            <button type="submit">Registrar</button>
+        </form>
+    </div>
+
+    <script src="{{ url_for('static', filename='js/registrar.js') }}"></script>
+</body>
+</html>
