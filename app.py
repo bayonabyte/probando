@@ -110,38 +110,28 @@ def registrar():
 
     codigo = None
 
-    if request.method == 'POST':
-        codigo = request.form['codigo']
-        marca = request.form['marca']
-        modelo = request.form['modelo']
-        anio_inicio = request.form.get('anio_inicio') or None
-        anio_fin = request.form.get('anio_fin') or None
-        tipo = request.form['tipo']
-        posicion = request.form.get('posicion') or None
-        lado = request.form.get("lado") or None
-        precio_compra = request.form['precio_compra']
-        precio_venta = request.form['precio_venta']
-        stock = request.form['stock']
-        ubicacion = request.form['ubicacion'].upper().strip()
-        imagen = request.files['imagen']
-        estado = request.form['estado']
-        almacen = request.form['almacen']
+    try:
+        if request.method == 'POST':
+            codigo = request.form['codigo']
+            marca = request.form['marca']
+            modelo = request.form['modelo']
+            anio_inicio = request.form.get('anio_inicio') or None
+            anio_fin = request.form.get('anio_fin') or None
+            tipo = request.form['tipo']
+            posicion = request.form.get('posicion') or None
+            lado = request.form.get("lado") or None
+            precio_compra = request.form['precio_compra']
+            precio_venta = request.form['precio_venta']
+            stock = request.form['stock']
+            ubicacion = request.form['ubicacion'].upper().strip()
+            estado = request.form['estado']
+            almacen = request.form['almacen']
+            fecha = datetime.now()
 
-        fecha = datetime.now()
+            imagen = request.files.get('imagen')
+            ruta_imagen = None
 
-        try:
-            # 🔹 INSERT SIN IMAGEN
-            cursor.execute("""
-                                    INSERT INTO productos (codigo, id_marca, id_modelo, anio_inicio, anio_fin, id_tipo,
-                                    id_posicion, id_lado, precio_compra, precio_venta, stock, ubicacion, imagen, fecha_registro,
-                                    id_estado, id_almacen)
-                                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
-                                """, (codigo, marca, modelo, anio_inicio, anio_fin, tipo, posicion, lado, precio_compra,
-                                      precio_venta, stock, ubicacion, None, fecha, estado, almacen))
-
-            db.commit()
-
-            # 🔥 SUBIR IMAGEN A SUPABASE
+            # 🔥 SUBIR IMAGEN PRIMERO (si existe)
             if imagen and imagen.filename != "":
                 nombre_imagen = secure_filename(codigo + ".webp")
 
@@ -153,67 +143,56 @@ def registrar():
                 img.save(buffer, format="WEBP", quality=70)
                 buffer.seek(0)
 
-                ruta_storage = f"imagenes/{nombre_imagen}"
+                ruta_imagen = f"imagenes/{nombre_imagen}"
 
                 supabase.storage.from_("productos").upload(
-                    ruta_storage,
+                    ruta_imagen,
                     buffer.read(),
                     {"content-type": "image/webp"}
                 )
 
-                # 🔹 GUARDAR RUTA
-                cursor.execute("""
-                    UPDATE productos SET imagen=%s WHERE codigo=%s
-                """, (ruta_storage, codigo))
+            # 🔥 INSERT PRODUCTO
+            cursor.execute("""
+                INSERT INTO productos (
+                    codigo, id_marca, id_modelo, anio_inicio, anio_fin, id_tipo,
+                    id_posicion, id_lado, precio_compra, precio_venta, stock,
+                    ubicacion, imagen, fecha_registro, id_estado, id_almacen
+                )
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+            """, (
+                codigo, marca, modelo, anio_inicio, anio_fin, tipo,
+                posicion, lado, precio_compra, precio_venta, stock,
+                ubicacion, ruta_imagen, fecha, estado, almacen
+            ))
 
-                db.commit()
+            db.commit()
 
-                # Obtener nombres reales
-                cursor.execute("SELECT nombre FROM marcas WHERE id=%s", (marca,))
-                nombre_marca = cursor.fetchone()["nombre"]
+            # 🔥 HISTORIAL
+            cursor.execute("""
+                INSERT INTO historial (tipo_accion, usuario, detalles, fecha)
+                VALUES (%s, %s, %s, NOW())
+            """, ("Registro", "Admin", f"Producto {codigo} registrado"))
 
-                cursor.execute("SELECT nombre FROM modelos WHERE id=%s", (modelo,))
-                nombre_modelo = cursor.fetchone()["nombre"]
+            db.commit()
 
-                cursor.execute("SELECT nombre FROM tipos WHERE id=%s", (tipo,))
-                nombre_tipo = cursor.fetchone()["nombre"]
+    except Exception as e:
+        print("ERROR:", e)
+        db.rollback()
 
-                nombre_posicion = ""
-                if posicion:
-                    cursor.execute("SELECT nombre FROM posiciones WHERE id=%s", (posicion,))
-                    nombre_posicion = cursor.fetchone()["nombre"]
+    finally:
+        db.close()
 
-                # Armar descripción bonita
-                descripcion = f"{codigo} - {nombre_marca} {nombre_modelo} - {nombre_tipo}"
-
-                if nombre_posicion:
-                    descripcion += f" - {nombre_posicion}"
-
-                if lado:
-                    descripcion += f" ({lado})"
-
-                cursor.execute("""
-                               INSERT INTO historial (tipo_accion, usuario, detalles, fecha)
-                               VALUES (%s, %s, %s, NOW())
-                           """, ("Registro", "Admin", descripcion))
-                db.commit()
-
-        except Exception as e:
-            print(e)
-            db.rollback()
-
-        finally:
-            db.close()
-
-    return render_template('registrar.html',
-                           codigo=codigo,
-                           marcas=marcas,
-                           anio_actual=anio_actual,
-                           tipos=tipos,
-                           posiciones=posiciones,
-                           estados=estados,
-                           almacenes=almacenes,
-                           error=mensaje_error)
+    return render_template(
+        'registrar.html',
+        codigo=codigo,
+        marcas=marcas,
+        anio_actual=anio_actual,
+        tipos=tipos,
+        posiciones=posiciones,
+        estados=estados,
+        almacenes=almacenes,
+        error=mensaje_error
+    )
 
 @app.route('/buscar', methods=['GET'])
 def buscar():
