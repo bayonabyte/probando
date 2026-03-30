@@ -96,6 +96,9 @@ def registrar():
     cursor.execute("SELECT id, nombre FROM tipos")
     tipos = cursor.fetchall()
 
+    cursor.execute("SELECT id, nombre FROM posiciones")
+    posiciones = cursor.fetchall()
+
     if request.method == 'POST':
         codigo = request.form['codigo']
         marca = request.form['marca']
@@ -162,7 +165,8 @@ def registrar():
 
     return render_template('registrar.html',
                            marcas=marcas,
-                           tipos=tipos)
+                           tipos=tipos,
+                           posiciones=posiciones)
 
 @app.route('/buscar', methods=['GET'])
 def buscar():
